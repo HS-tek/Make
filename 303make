@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+## 302
+## File description:
+## make
+##
+
+import sys
+
+names = []
+files = set()
+
+
+class Elem:
+    def __init__(self, line):
+        spl = line.split(":")
+        self._name = spl[0].strip()
+        self._deps = []
+        self.cc = ""
+        for dep in spl[1].split():
+            dep = dep.strip()
+            if not dep:
+                continue
+            self._deps.append(dep)
+
+    def is_dep(self, dep):
+        return 1 if dep in self._deps else 0
+
+    def __repr__(self):
+        return self._name + ": " + " ".join(self._deps)
+
+    def __eq__(self, other):
+        return other == self._name
+
+def help():
+    if len(sys.argv) == 2:
+        if sys.argv[1] == "-h" or sys.argv[1] == "--help":
+            print("USAGE")
+            print("\t./303make makefile [file]")
+            print("DESCRIPTION")
+            print("\tmakefile\tname of the makefile")
+            print("\tfile\t\tname of a recently modified file")
+            exit(0)
+
+
+def take_names(lst):
+    global names
+    files = set()
+    for i in lst:
+        if i.find(":") != -1:
+            files = files.union(set(filter(lambda x: x, [e.strip() for e in i.replace(":", " ").split()])))
+            names.append(Elem(i))
+        else:
+            names[-1].cc = i
+    return list(files)
+
+def fill_M(file, files, M):
+    global names
+    if file not in names:
+        M.append([0 for _ in range(0, len(files))])
+    else:
+        elem = names[names.index(file)]
+        M.append([elem.is_dep(f) for f in files])
+    return M
+
+def matrix(files):
+    global names
+    M = []
+    for file in files:
+        M = fill_M(file, files, M)
+    return M
+
+def find_res(i, array, files):
+    j = 0
+    while j < len(files):
+        if array[j][i] == 1:
+            print(" ->", files[j], end="")
+            find_res(j, array, files)
+            return
+        j += 1
+
+
+def print_path(array, elems, files):
+    i = 0
+    while i < len(files):
+        j = 0
+        while j < len(files):
+            if array[j][i] == 1:
+                print(files[i], end=" -> ")
+                print(files[j], end="")
+#                print(files[i], "-> " + files[j], end=" ")
+                find_res(j, array, files)
+                print()
+            j += 1
+        i += 1
+
+
+def find_other_cc(i, array, files, elems):
+    to_ret = set()
+    j = 0
+    while j < len(files):
+        if array[j][i] == 1:
+            to_print = []
+            for elem in elems:
+                if elem == files[j] or elem.is_dep(files[j]):
+                    to_print.append(elem.cc)
+            print("\n".join(sorted(to_print)))
+            find_other_cc(j, array, files, elems)
+            return
+        j += 1
+    return to_ret
+
+
+def make():
+    global names
+    lst = list()
+    try:
+        file = open(sys.argv[1], "r")
+    except:
+        exit(84)
+    for f in file:
+        if len(f) != 1:
+            lst.append(f.rstrip('\n'))
+    file.close()
+    files = take_names(lst)
+    if len(names) == 0:
+        exit(84)
+    files.sort()
+    M = matrix(files)
+    i = 0
+    MM = [[0 for i in range(len(M))] for j in range(len(M))]
+    for i in range(0, len(M)):
+        for j in range(0, len(M)):
+            MM[i][j] = M[j][i]
+    i = 0
+    if len(sys.argv) == 2:
+        while i < len(MM):
+            M2 = str(MM[i]).replace(",", "")
+            print(M2)
+            i += 1
+        print()
+        print_path(M, names, files)
+    if len(sys.argv) == 3:
+        if sys.argv[2] not in files:
+            exit(84)
+        j = 0
+        file = sys.argv[2]
+        while j < len(files):
+            if M[j][files.index(file)] == 1:
+                to_print = []
+                for elem in names:
+                    if elem == files[files.index(file)] or elem.is_dep(files[files.index(file)]):
+                        to_print.append(elem.cc)
+                print("\n".join(sorted(to_print)))
+                find_other_cc(j, M, files, names)
+                break
+            j += 1
+
+def rigor():
+    if len(sys.argv) > 3:
+        exit(84)
+
+def main():
+    help()
+    rigor()
+    make()
+
+try:
+    if __name__ == "__main__":
+        main()
+except:
+    exit(84)
